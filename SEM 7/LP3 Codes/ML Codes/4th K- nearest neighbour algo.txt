@@ -1,0 +1,86 @@
+
+import numpy as np 
+import pandas as pd
+
+import math
+from scipy.spatial import distance
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+
+
+
+DataSet = pd.DataFrame()
+DataSet = pd.read_csv("/kaggle/input/diabetes/diabetes.csv")
+DataSet.head(10)
+
+
+
+for column in DataSet.columns[1:-3]:
+    DataSet[column].replace(0,np.NaN, inplace=True)
+    DataSet[column].fillna(round(DataSet[column].mean(skipna=True)), inplace=True)
+DataSet.head(10)
+
+
+
+X = DataSet.iloc[:, :8]
+y = DataSet.iloc[:, 8:]
+# Split data into 20% for testing and 80% for training
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.2,random_state=0)
+
+def distance_with_all_train_Points(X_train, X_test):
+    eculidean_distance = {}
+    for data_point in X_test.itertuples():
+        for point in X_train.itertuples():
+            eculidean_distance[tuple([list(data_point)[0],list(point)[0]])] = distance.euclidean(list(data_point)[1:], list(point)[1:])
+    return eculidean_distance
+
+#program
+def k_nearest_neighbors(eculidean_distance, X_test, y, k):
+
+        all_neighbours = {}
+        Output_labels = []
+        for data_point in X_test.itertuples():
+            for key, value in eculidean_distance.items():
+                if key[0] == list(data_point)[0]:
+                    all_neighbours[key] = value
+                else:
+                    continue
+            i, yes, no = 0, 0, 0
+            for item in sorted(all_neighbours.items(), key = lambda x: x[1]):
+                if i < k:
+                    if(y.iloc[item[0][1]]["Outcome"] == 1):
+                        yes += 1
+                    else:
+                        no += 1
+                    i += 1
+        # Till this point, we know that how much nearest neighbours have label of one and label of 0 for having diabaties or not.
+        # On the basis of this we'll assign label to new data Point.
+            if(yes > no):
+                Output_labels.append(1)
+            else:
+                Output_labels.append(0)
+            all_neighbours.clear()
+            
+        return Output_labels
+#program end
+
+
+eculidean_distance = distance_with_all_train_Points(X_train, X_test)
+Output_labels = k_nearest_neighbors(eculidean_distance, X_test, y, 5)
+
+
+
+neighbor = KNeighborsClassifier(n_neighbors=5)
+neighbor.fit(X_train, np.array(y_train).ravel())
+
+y_pred = neighbor.predict(X_test)
+y_pred
+
+neighbor.score(X_test, Output_labels)

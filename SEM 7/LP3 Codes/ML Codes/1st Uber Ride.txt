@@ -1,0 +1,73 @@
+import os
+import math
+import scipy
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import datetime as dt
+import geopy.distance
+from tqdm import tqdm
+from IPython.display import display
+
+from statsmodels.formula import api
+from sklearn.feature_selection import RFE
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+
+from sklearn.decomposition import PCA
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import ElasticNet
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+import matplotlib.pyplot as plt
+plt.rcParams['figure.figsize'] = [10,6]
+
+import warnings 
+warnings.filterwarnings('ignore')
+
+df = pd.read_csv('../input/uber-fares-dataset/uber.csv')
+
+df.drop(['Unnamed: 0','key'], axis=1, inplace=True)
+display(df.head())
+
+target = 'fare_amount'
+features = [i for i in df.columns if i not in [target]]
+
+print('\n\033[1mInference:\033[0m The Datset consists of {} features & {} samples.'.format(df.shape[1], df.shape[0]))
+
+nvc = pd.DataFrame(df.isnull().sum().sort_values(), columns=['Total Null Values'])
+nvc['Percentage'] = round(nvc['Total Null Values']/df.shape[0],3)*100
+print(nvc)
+df.dropna(inplace=True)
+
+df = df[(df.pickup_latitude<90) & (df.dropoff_latitude<90) &
+        (df.pickup_latitude>-90) & (df.dropoff_latitude>-90) &
+        (df.pickup_longitude<180) & (df.dropoff_longitude<180) &
+        (df.pickup_longitude>-180) & (df.dropoff_longitude>-180)]
+
+df.pickup_datetime=pd.to_datetime(df.pickup_datetime)
+
+df['year'] = df.pickup_datetime.dt.year
+df['month'] = df.pickup_datetime.dt.month
+df['weekday'] = df.pickup_datetime.dt.weekday
+df['hour'] = df.pickup_datetime.dt.hour
+
+df['Monthly_Quarter'] = df.month.map({1:'Q1',2:'Q1',3:'Q1',4:'Q2',5:'Q2',6:'Q2',7:'Q3',
+                                      8:'Q3',9:'Q3',10:'Q4',11:'Q4',12:'Q4'})
+df['Hourly_Segments'] = df.hour.map({0:'H1',1:'H1',2:'H1',3:'H1',4:'H2',5:'H2',6:'H2',7:'H2',8:'H3',
+                                     9:'H3',10:'H3',11:'H3',12:'H4',13:'H4',14:'H4',15:'H4',16:'H5',
+                                     17:'H5',18:'H5',19:'H5',20:'H6',21:'H6',22:'H6',23:'H6'})
+
+df['Distance']=[round(geopy.distance.distance((df.pickup_latitude[i], df.pickup_longitude[i]),(df.dropoff_latitude[i], df.dropoff_longitude[i])).m,2) for i in df.index]
+
+df.drop(['pickup_datetime','month', 'hour',], axis=1, inplace=True)
+
+original_df = df.copy(deep=True)
+
+df.head()
+
